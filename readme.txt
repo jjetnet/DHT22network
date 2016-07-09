@@ -15,6 +15,15 @@ The server collecting data is a python script, which has to be run with sufficie
 
 The current version of eagle file's pcb is awkward - components are on the copper side, which makes for some difficult soldering for some pins. 
 
+The two jpeg files show an example of an assembled sensor module, outside its casing - as mentioned it is a tad awkward in this implementation. There's some hot glue that was requried to stabilise some of the copper wiring which had lifted off when accidentally pushing on the module... The top view with sensor rotated shows the two resistors that make up the voltage divider to bring the battery voltage within the range of the ESP8266 1V ADC, as well as the jumper that needs to be removed for programming (it connects XPD to DTR to enable  deep sleep - see https://learn.sparkfun.com/tutorials/esp8266-thing-hookup-guide/example-sketch-goodnight-thing-sleep-mode). The six open pins are a copy of the programming port of the esp8266 so that the the module can still be programmed.
+This particular example uses a DHT22 module from df robotics, but a naked DHT22 can also be used.
+
+For the battery to last months rather than hours or days, the power LED has to be disconnected, see https://learn.sparkfun.com/tutorials/esp8266-thing-hookup-guide/example-sketch-goodnight-thing-sleep-mode
+
+For this example, I used a LiPo 1000mAh LiPo battery, which is of similar size to the esp8266 thing module.
+
+
+
 Known issues:
 - Arduino code:  If the server is down or a sensor module fails for any other reason to communicate with the server, it will keep trying continuously for ever - the battery will then run out rapidly.
 - Python code: the server is not bug free. It is stable for days to weeks at a time, but occasionally stops if communications with sensor module isn't quite as expected. I may now have fixed this bug - but i won't be sure for another few weeks...
