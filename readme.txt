@@ -3,15 +3,22 @@ wifi dht22 network
 
 Note: there are many similar, and probably better implementation of similar concepts. My python coding in particular is far from optimal or elegant. Look around for better implementations...
 
+*** Overview: ***
+
 Arduino code, eagle files and python script for a wifi based array of  humidity and temperature sensors sending data back periodcially to a server. The server generates plots and tables of current data displayed  on a webpage - on the local server, and/or on a remote web server through ftp. The sensors are meant for indoors reading, with outside temperature read from publicly available data from the Australian bureau of meteorology (data for australia only...).
 The number of sensors is not really limited (Although past a certain number i'm sure bugs will emerge), and the server just adapts when a new sensor comes online. 
 
 Each sensor can be battery operated for a number of months or even years depending on refresh settings and battery  - power consumption between readings is minimal. The server can send notificatinos to android and iphone phones using the free pushetta service/app (See www.pushetta.com) when outside temperature goes above or below user defined  thresholds - useful to remember to close windows, curtains or blinds.
 Each sensor also reads its battery level, also displayed on the webpage as battery voltage with a crude red/green color coding depending on battery state.
 
+For example of what the webpage looks like see webpageexample.png. Data displayed includes temperature, relative humidity and the water partial pressure - the latter is absolute rather than relative, and is more informative if you want to control the flow of humidity between two rooms or between outdoows and indoors: if two roowms are at different temperatures but identical relative humidity, there will still be a net flow of water vapour from the space with the higher partial water pressure to the room with the lower one. If you want to keep humidity down indoors in summer, this is the quantity to watch to close/open windows, rather than the relative humidity.
+
+
 Each sensor is based on an esp8266 - specifically i used a sparkfun esp8266 thing, which includes a convenient LiPo battery charger. Wifi network and key,  location name, and python server addess and port have to be adjusted in the arduino code before uploading. 
 
-The server collecting data is a python script, which has to be run with sufficient priviledges to write onto the web server's  folder (eg /var/www/ ). All server data is defined in a separate configuration script (tempTCPconfig.py).
+The server collecting data is a python script, which has to be run with sufficient priviledges to write onto the web server's  folder (eg /var/www/ ). All server data is defined in a separate configuration script (tempTCPconfig.py). I run mine on a raspbery pi.
+
+*** Hardware ***
 
 The current version of eagle file's pcb is awkward - components are on the copper side, which makes for some difficult soldering for some pins. 
 
