@@ -20,6 +20,7 @@ import numpy as np
 import gc
 import socket
 import threading
+import sys
 import matplotlib.cbook as cbook
 from pushetta import Pushetta
 # import network configuration etc
@@ -28,6 +29,7 @@ from tempTCPconfig import *
 #import time
 from time import asctime,localtime,time,sleep,strftime,strptime,mktime
 import datetime
+NaN=float('NaN')
 
 dateconv = np.vectorize(datetime.datetime.fromtimestamp)
 class TCPlistener:
@@ -151,15 +153,26 @@ class climatehtmlfileTCP:
         return pw
 
     def getBomData(self):
-        "BOM observation object"
-        response = urlopen(self.bomurl)
-        self.bomdata=json.load(response)
-        self.ot=float(self.bomdata["observations"]["data"][0]["air_temp"])
-        self.oh=float(self.bomdata["observations"]["data"][0]["rel_hum"])
-        self.bomdatatime=self.bomdata["observations"]["data"][0]["local_date_time"]
-        bomd=self.bomdata["observations"]["data"][0]["local_date_time_full"]
-        self.bomdatatimefull=strptime(bomd,"%Y%m%d%H%M%S")
-        self.op=self.waterPartialPressure(self.ot,self.oh)
+        "get BOM observations"
+        try:
+            response = urlopen(self.bomurl)
+            self.bomdata=json.load(response)
+            self.ot=float(self.bomdata["observations"]["data"][0]["air_temp"])
+            self.oh=float(self.bomdata["observations"]["data"][0]["rel_hum"])
+            self.bomdatatime=self.bomdata["observations"]["data"][0]["local_date_time"]
+            bomd=self.bomdata["observations"]["data"][0]["local_date_time_full"]
+            self.bomdatatimefull=strptime(bomd,"%Y%m%d%H%M%S")
+            self.op=self.waterPartialPressure(self.ot,self.oh)
+            self.hasbomdata=True
+        except:
+            self.hasbomdata=False
+            self.ot=NaN
+            self.op=NaN
+            self.oh=NaN
+            self.bomdatatime=localtime()
+            self.bomdatatimefull=localtime()
+            print "failed to load bom data"
+				   
 
     def getSensorData(self):    
         #data comes from TCP reader - here we just update the vapour pressure based on existing data
@@ -199,28 +212,34 @@ class climatehtmlfileTCP:
         datafilen.close()
 
     def writeBOMcsv(self):
-        datafilen=open(self.datalogfile+'BOM.csv','a')
-        datafilen.write(str.format('{0:.3f}',mktime(self.bomdatatimefull))+',')
-        datafilen.write(strftime('%d-%m-%Y %H:%M:%S',self.bomdatatimefull)+",")
-        datafilen.write(str.format("{0:.1f}",self.ot)+",")
-        datafilen.write(str.format("{0:.0f}",self.oh)+",")
-        datafilen.write(str.format("{0:.0f}",self.op)+"\n")
-        datafilen.close()
+        if(self.hasbomdata):
+            datafilen=open(self.datalogfile+'BOM.csv','a')
+            datafilen.write(str.format('{0:.3f}',mktime(self.bomdatatimefull))+',')
+            datafilen.write(strftime('%d-%m-%Y %H:%M:%S',self.bomdatatimefull)+",")
+            datafilen.write(str.format("{0:.1f}",self.ot)+",")
+            datafilen.write(str.format("{0:.0f}",self.oh)+",")
+            datafilen.write(str.format("{0:.0f}",self.op)+"\n")
+            datafilen.close()
 
     def ftpcopy(self, name):
         # copies file name to  remote webserver over ftp - without path information
         if(ftpserver): # only if ftpserver is defined
             lf=open(name, 'r') 
             f=FTP(ftpserver) # defined in config file
-            f.login(ftplogin,ftppwd)
-            rname=name.split('/')[-1] # remove path
-            f.storbinary('STOR ' +rname ,lf)
+            try:
+                f.login(ftplogin,ftppwd)
+                rname=name.split('/')[-1] # remove path
+                f.storbinary('STOR ' +rname ,lf)
+                f.quit()
+            except:
+                print "failed to uplod to ftp"
+            
             lf.close()
-            f.quit()
-
+        
     
     def plotdata(self):        
-	#print "so far so good"
+	# No longer used - sue plotdataday instead, which takes a 
+        # a time interval to plot on as an option
         data={}
         cols=['r', 'b' ,'g', 'y','c','k']
         #plt.style.use('ggplot')
@@ -277,10 +296,10 @@ class climatehtmlfileTCP:
         plt.close()
         self.ftpcopy(self.datalogfile+'.png')
         gc.collect()
-        self.plotdataday()
         
-    def plotdataday(self):        
-	#plot data for last day only
+        
+    def plotdataday(self,nameext,days=1):        
+	#plot data for last days day only, save with nameext.png extension
         data={}
         cols=['r', 'b' ,'g', 'y','c','k']
         #plt.style.use('ggplot')
@@ -296,8 +315,8 @@ class climatehtmlfileTCP:
         if data[:,0].size>1: # only plot if more than one data point
             lcol=cols[icol]
             ndates=data[:,0]
-            ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600])
-            ldata=data[ndates[:]>=ndates[-1]-24*3600]
+            ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600*days])
+            ldata=data[ndates[:]>=ndates[-1]-24*3600*days]
             if(ldata[:,0].size>1):
                 ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label='outside')
                 ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label='outside')
@@ -318,29 +337,33 @@ class climatehtmlfileTCP:
                 if icol>=len(cols): icol=1
                 lcol=cols[icol]                
                 ndates=data[:,0]
-                ldates=dateconv(ndates[ndates[:]>ndates[-1]-24*3600])
-                ldata=data[ndates[:]>ndates[-1]-24*3600]
-                if(ldata[:,0].size>1):
-                    ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label=str(sid))
-                    ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label=str(sid))
-                    ax3.plot_date(ldates,ldata[:,4],ls='solid',marker="",color=lcol,label=str(sid))
+                ldates=dateconv(ndates[ndates[:]>ndates[-1]-24*3600*days])
+                if len(set(ldates))>1: #only plot if more than one unique timestamp in srlected timeframe
+                    ldata=data[ndates[:]>ndates[-1]-24*3600*days]
+                    if(ldata[:,0].size>1):
+                        ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label=str(sid))
+                        ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label=str(sid))
+                        ax3.plot_date(ldates,ldata[:,4],ls='solid',marker="",color=lcol,label=str(sid))
 
         f.autofmt_xdate()        
-        xfmt = md.DateFormatter('%H:%M')        
+        if days>1:
+            xfmt = md.DateFormatter('%Y-%m-%d %H:%M')
+        else:
+            xfmt = md.DateFormatter('%H:%M')        
         ax3.xaxis.set_major_formatter(xfmt)
         ax1.grid()
         ax2.grid()
         ax3.grid()
         f.subplots_adjust(top=0.85)
         plt.legend(bbox_to_anchor=(0., 0.95, 1., .102),  bbox_transform=plt.gcf().transFigure, loc=3, ncol=3, mode="expand", borderaxespad=0.)
-        plt.savefig(self.datalogfile+'day.png',dpi=100)
-        self.ftpcopy(self.datalogfile+'day.png')
+        plt.savefig(self.datalogfile+nameext+'.png',dpi=100)
+        self.ftpcopy(self.datalogfile+nameext+'.png')
         f.clf()
         plt.close()
         gc.collect()
         
     def sendAlerts(self):
-        if(self.p): #if pushetta service has been enabled, send alerts
+        if(self.p and self.hasbomdata): #if pushetta service has been enabled, send alerts
             if (self.ot<self.alertTempLow) and not(self.sentAlertLow):
                 self.p.pushMessage(CHANNEL_NAME,"Temperature alert (" +str(self.ot)+")")
                 self.sentAlertLow=True
@@ -363,6 +386,7 @@ class climatehtmlfileTCP:
             self.TCPlistener.gotnewdata=False
             self.lastUpdate=time()
             self.getBomData()
+                
             self.writeBOMcsv()
             self.sendAlerts()
 
@@ -397,7 +421,8 @@ class climatehtmlfileTCP:
                 self.filen.write("</body></html>")
                 self.filen.close()
                 self.ftpcopy(self.filename)
-                self.plotdata()
+                self.plotdataday('',30)
+                self.plotdataday('day',1)
 
 
 
@@ -430,6 +455,7 @@ except KeyboardInterrupt:
     climatefile.TCPlistener.s.close()
     climatefile.errfilen.close()
     climatefile.TCPlistener.exitloop=True
+    
     
 finally:
     climatefile.TCPlistener.s.close()
