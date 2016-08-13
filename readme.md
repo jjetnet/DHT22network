@@ -3,14 +3,14 @@ wifi dht22 network
 
 Note: there are many similar, and probably better implementation of
 similar concepts. My python coding in particular is far from optimal
-or elegant. This implementation has plots and water partial pressure
-calculations which distinguishes from others, but if you don't need
+or elegant. This implementation has mobile notifications, plots and water partial pressure
+calculations which distinguishes it from others, but if you don't need
 this look around for better implementations.
 
 ## Overview:
 
 Arduino code, eagle files and python script for a wifi based array of
-humidity and temperature sensors sending data back periodcially to a
+humidity and temperature sensors sending data back periodically to a
 server. The server generates plots and tables of current data
 displayed on a webpage - on the local server, and/or on a remote web
 server through ftp. The sensors are meant for indoors reading, with
@@ -55,11 +55,15 @@ script (tempTCPconfig.py). I run mine on a raspbery pi.
 
 ## Hardware
 
-The current version of eagle file's pcb is awkward - components are on
+A minimal version can be assembled without PCB, using a ESP8266 thing the DHT22 sensor, and a jumper wire between XPD and DTR (which needs to be removed for programming). To add battery monitoring, two resistors straight onto the ESP8266 thing between Vin, Gnd and Analog in forming a ~1/5 voltage divider is enough. (220k between Vin and Analog in, 56k between gnd and Analog in) (see eagle schematic for details).
+
+Alternatively, a PCB can be used to clean up the circuit: 
+
+The current version of the pcb (eagle file) is awkward - components are on
 the copper side, which makes for some difficult soldering for some
 pins.
 
-The two jpeg files show an example of an assembled sensor module,
+The two jpeg files show an example of an assembled sensor module using PCB,
 outside its casing - as mentioned it is a tad awkward in this
 implementation. There's some hot glue that was requried to stabilise
 some of the copper wiring which had lifted off when accidentally
@@ -77,13 +81,28 @@ For the battery to last months rather than hours or days, the power LED has to b
 
 For this example, I used a LiPo 1000mAh LiPo battery, which is of similar size to the esp8266 thing module.
 
+## Installation:
+The python-based server requires a number of libraries,
+some of which are not in the default python install for raspberry
+pi (if you chose to run the server on a raspberry pi). In particular pushetta, matplotlib and a recent version of numpy
+are requried, which you may have to install from source depending on
+your distribution/package manager. I'm not sure which version is
+required, but it runs with numpy 1.11.0, matplotlib 1.1.1rc2, pushetta
+1.0.15.
+Notifications require a free account with the pushetta service. For this, and how to install the pushetta python package, see [the puhsetta help page](http://pushetta.com/pushetta-docs).
+Feel free to contact me if you have any trouble installing or running the server.
+
+
 ## Updates:
+### 13/08/16
+* increased stability: exception handling for ftp and pushetta. The python server seems very stable now.
+* remover redundant, unused plot routine.
+
 ### 30/07/16
-* fixed stability issues when remote ftp server or bureau of meteorology websites are not responsive
+* fixed stability issues when remote ftp server or bureau of meteorology websites are not responsive.
 * fixed plotting - no more error messages when insufficient data points, and limited long-term plot to last 30 days for readability
 
 
 ## Known issues:
 * Arduino code:  If the server is down or a sensor module fails for any other reason to communicate with the server, it will keep trying continuously for ever - the battery will then run out rapidly.
-* Python code: the server is not bug free. It is stable for days to weeks at a time, but occasionally stops if communications with sensor module isn't quite as expected. I may now have fixed this bug - but i won't be sure for another few weeks...
 * safety: ftp passwords are in clear text in the python configuration file, and  so is the wifi password in the arduino code. MAke sure to protect those files. TCP communications between sensor module and server are unencrypted.

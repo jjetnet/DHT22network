@@ -225,8 +225,8 @@ class climatehtmlfileTCP:
         # copies file name to  remote webserver over ftp - without path information
         if(ftpserver): # only if ftpserver is defined
             lf=open(name, 'r') 
-            f=FTP(ftpserver) # defined in config file
             try:
+                f=FTP(ftpserver) # defined in config file
                 f.login(ftplogin,ftppwd)
                 rname=name.split('/')[-1] # remove path
                 f.storbinary('STOR ' +rname ,lf)
@@ -235,67 +235,6 @@ class climatehtmlfileTCP:
                 print "failed to uplod to ftp"
             
             lf.close()
-        
-    
-    def plotdata(self):        
-	# No longer used - sue plotdataday instead, which takes a 
-        # a time interval to plot on as an option
-        data={}
-        cols=['r', 'b' ,'g', 'y','c','k']
-        #plt.style.use('ggplot')
-        plt.rc('lines', linewidth=2)
-        f, (ax1, ax2,ax3)= plt.subplots(3,sharex=True,sharey=False)
-        f.set_size_inches(5,10)
-        # plot BOM data first
-        ax1.set_color_cycle(cols)
-        ax2.set_color_cycle(cols)
-        ax3.set_color_cycle(cols)
-        icol=0
-        data=np.genfromtxt(self.datalogfile+'BOM.csv',skip_header=0,delimiter=',')
-        if data[:,0].size>1: # only plot if more than one data point
-            lcol=cols[icol]
-            dates=dateconv(data[:,0])
-            ax1.plot_date(dates,data[:,2],ls='solid',marker="",color=lcol,label='outside')
-            ax2.plot_date(dates,data[:,3],ls='solid',marker="",color=lcol,label='outside')
-            ax3.plot_date(dates,data[:,4],ls='solid',marker="",color=lcol,label='outside')
-
-        ax1.set_title('Temperature')
-        ax1.set_ylabel('Temp')
-        ax2.set_title('Rel humidity')
-        ax2.set_ylabel('%')
-        ax3.set_title('Vap pressure')
-        ax3.set_ylabel('Pa')
-
-        # now add all sensor data
-        for sid in self.sensidtable:
-            data=np.genfromtxt(self.datalogfile+str(sid)+'.csv',skip_header=0,delimiter=',')
-            #print "plotting :" +str(sid)
-            try:
-                if(data[:,0].size>1):
-                    icol=icol+1
-                    if icol>=len(cols): icol=1
-                    lcol=cols[icol]
-                    dates=dateconv(data[:,0])
-                    ax1.plot_date(dates,data[:,2],ls='solid',marker="",color=lcol,label=str(sid))
-                    ax2.plot_date(dates,data[:,3],ls='solid',marker="",color=lcol,label=str(sid))
-                    ax3.plot_date(dates,data[:,4],ls='solid',marker="",color=lcol,label=str(sid))
-            except:
-                print "data not right size for plot:", data.shape
-        #plt.xticks(dates, rotation=75, ha='right') # set ticks at plotted datetimes
-        f.autofmt_xdate()        
-        xfmt = md.DateFormatter('%Y-%m-%d %H:%M')        
-        ax3.xaxis.set_major_formatter(xfmt)
-        #plt.legend(loc="upper left", bbox_to_anchor=[0, 1], ncol=3, shadow=True, title="", fancybox=True)
-        f.subplots_adjust(top=0.85)
-        plt.legend(bbox_to_anchor=(0., 0.95, 1., .102),  bbox_transform=plt.gcf().transFigure, loc=3, ncol=3, mode="expand", borderaxespad=0.)
-        #f.tight_layout() # to make sure everything fits inside the figures boundaries
-        #print "abot to save"
-        plt.savefig('testi2.png')
-        plt.savefig(self.datalogfile+'.png',dpi=100)
-        f.clf()
-        plt.close()
-        self.ftpcopy(self.datalogfile+'.png')
-        gc.collect()
         
         
     def plotdataday(self,nameext,days=1):        
@@ -365,12 +304,19 @@ class climatehtmlfileTCP:
     def sendAlerts(self):
         if(self.p and self.hasbomdata): #if pushetta service has been enabled, send alerts
             if (self.ot<self.alertTempLow) and not(self.sentAlertLow):
-                self.p.pushMessage(CHANNEL_NAME,"Temperature alert (" +str(self.ot)+")")
-                self.sentAlertLow=True
-
+                try:
+                    self.p.pushMessage(CHANNEL_NAME,"Temperature alert (" +str(self.ot)+")")
+                    self.sentAlertLow=True
+                except:
+                    print "puschetta notification failed"
+                    
             if (self.ot>self.alertTempHigh) and not(self.sentAlertHigh):
-                self.p.pushMessage(CHANNEL_NAME,"Temperature alert (" +str(self.ot)+")")
-                self.sentAlertHigh=True
+                try:
+                    self.p.pushMessage(CHANNEL_NAME,"Temperature alert (" +str(self.ot)+")")
+                    self.sentAlertHigh=True
+                except:
+                    print "puschetta notification failed"
+                                        
     # reset flags            
             if (self.ot>self.alertTempLow+1) and (self.sentAlertLow):
                 self.sentAlertLow=False
