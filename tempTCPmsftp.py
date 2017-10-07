@@ -257,6 +257,7 @@ class climatehtmlfileTCP:
         ax3.set_color_cycle(cols)
         icol=0
         data=np.genfromtxt(self.datalogfile+'BOM.csv',skip_header=0,delimiter=',')
+        data=data[~np.isnan(data[:,0])] # remove lines with nan for date
         if data[:,0].size>1: # only plot if more than one data point
             lcol=cols[icol]
             ndates=data[:,0]
@@ -277,12 +278,14 @@ class climatehtmlfileTCP:
         # now add all sensor data
         for sid in self.sensidtable:
             data=np.genfromtxt(self.datalogfile+str(sid)+'.csv',skip_header=0,delimiter=',')
+            data=data[~np.isnan(data[:,0])] # remove lines with nan for date
             if(data[:,0].size>1):
                 icol=icol+1
                 if icol>=len(cols): icol=1
                 lcol=cols[icol]                
                 ndates=data[:,0]
                 ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600*days])
+#                ndates=ndates[~np.isnan(data).any(axis=1)] # removs raws with nans
                 if len(set(ldates))>1: #only plot if more than one unique timestamp in srlected timeframe
                     ldata=data[ndates[:]>=ndates[-1]-24*3600*days]
                     if(ldata[:,0].size>1):
