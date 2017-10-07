@@ -44,7 +44,7 @@ class TCPlistener:
         try:
             self.s.bind(('', port))
         except socket.error as msg:
-            self.errfilen.write('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]+'\n');
+            self.inflog('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]);
             sys.exit()
             self.exitloop=True
 
@@ -57,7 +57,7 @@ class TCPlistener:
         while not self.exitloop:
             # print '.'
             conn, addr = self.s.accept()
-            self.errfilen.write('Connected with ' + addr[0] + ':' + str(addr[1])+'\n')
+            self.inflog('Connected with ' + addr[0] + ':' + str(addr[1]))
             t=threading.Thread(target=self.clientthread ,args=(conn,))
             t.start()
             t.join()
@@ -75,12 +75,10 @@ class TCPlistener:
             #Receiving from client
             
             data = conn.recv(1024)
-            print '"'+data+'"'
+            self.inflog('"'+data.strip()+'"')
             if(data!=''):
                 try:
                     sensordata=json.loads(data)
-                    #print "Temperature:"+str.format("{0:.1f}",sensordata["T"])
-                    #print "Humiditiy:"+str.format("{0:.1f}",sensordata["H"])
                     self.it=sensordata["T"]
                     self.ih=sensordata["H"]
                     self.sensorID=sensordata["S"]
@@ -93,7 +91,7 @@ class TCPlistener:
                     self.gotnewdata=True
                     break
                 except:
-                    self.errfilen.write("json error: \""+str(data)+"\"\n")
+                    self.inflog('json error: "'+str(data)+'"')
                     data=False
                     break
 
@@ -107,7 +105,10 @@ class TCPlistener:
         #came out of loop
         conn.close()
 	return 0
-        
+    def inflog(self,txt):
+        txt=strftime('%d-%m-%Y %H:%M:%S')+': '+txt+'\n'
+        self.errfilen.write(txt);
+          
 
 class climatehtmlfileTCP:
     def __init__(self,filepath,bomurl,fileradix,port,errfile,lowT,highT):
@@ -127,7 +128,7 @@ class climatehtmlfileTCP:
         self.alertTempHigh=highT
         self.sentAlertHigh=False
         self.sentAlertLow=False
-        self.errfilen.write('climateHTMLfile class initiated\n')
+        self.inflog('climateHTMLfile class initiated')
         #print 'initiated'
         if(API_KEY):
             self.p=Pushetta(API_KEY)
@@ -135,6 +136,10 @@ class climatehtmlfileTCP:
         else:
             self.p=False
 
+    def inflog(self,txt):
+        txt=strftime('%d-%m-%Y %H:%M:%S')+': '+txt+'\n'
+        self.errfilen.write(txt);
+            
     def waterPartialPressure(self,temperature,humidity):
         "Calculates watersaturatiopressure(temperature,humidity) temperautre (C), h (%)"
         # formula for water saturation vapor pressure from
@@ -171,14 +176,14 @@ class climatehtmlfileTCP:
             self.oh=NaN
             self.bomdatatime=localtime()
             self.bomdatatimefull=localtime()
-            print "failed to load bom data"
+            self.inflog("failed to load bom data")
 				   
 
     def getSensorData(self):    
         #data comes from TCP reader - here we just update the vapour pressure based on existing data
         if self.TCPlistener.ih<0:
              self.hasSensorData=False
-             self.errfilen.write(asctime()+'Sensor error: '+str(self.TCPlistener.sensorID)+'returned '+str(self.TCPlistener.ih)+'\n')
+             self.inflog(asctime()+'Sensor error: '+str(self.TCPlistener.sensorID)+'returned '+str(self.TCPlistener.ih)+'\n')
         else:
             self.addSensorData(self.TCPlistener.it,self.TCPlistener.ih,self.TCPlistener.sensorID,self.TCPlistener.itimestamp, self.TCPlistener.battery)
             self.hasSensorData=True
@@ -211,6 +216,7 @@ class climatehtmlfileTCP:
         datafilen.write(str.format("{0:.0f}",ib)+"\n")
         datafilen.close()
 
+        
     def writeBOMcsv(self):
         if(self.hasbomdata):
             datafilen=open(self.datalogfile+'BOM.csv','a')
@@ -232,7 +238,7 @@ class climatehtmlfileTCP:
                 f.storbinary('STOR ' +rname ,lf)
                 f.quit()
             except:
-                print "failed to uplod to ftp"
+                self.inflog("failed to uplod to ftp")
             
             lf.close()
         
@@ -276,9 +282,9 @@ class climatehtmlfileTCP:
                 if icol>=len(cols): icol=1
                 lcol=cols[icol]                
                 ndates=data[:,0]
-                ldates=dateconv(ndates[ndates[:]>ndates[-1]-24*3600*days])
+                ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600*days])
                 if len(set(ldates))>1: #only plot if more than one unique timestamp in srlected timeframe
-                    ldata=data[ndates[:]>ndates[-1]-24*3600*days]
+                    ldata=data[ndates[:]>=ndates[-1]-24*3600*days]
                     if(ldata[:,0].size>1):
                         ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label=str(sid))
                         ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label=str(sid))
@@ -293,6 +299,9 @@ class climatehtmlfileTCP:
         ax1.grid()
         ax2.grid()
         ax3.grid()
+        ax1.xaxis_date()
+        ax2.xaxis_date()
+        ax3.xaxis_date()
         f.subplots_adjust(top=0.85)
         plt.legend(bbox_to_anchor=(0., 0.95, 1., .102),  bbox_transform=plt.gcf().transFigure, loc=3, ncol=3, mode="expand", borderaxespad=0.)
         plt.savefig(self.datalogfile+nameext+'.png',dpi=100)
@@ -308,14 +317,14 @@ class climatehtmlfileTCP:
                     self.p.pushMessage(CHANNEL_NAME,"Temperature alert (" +str(self.ot)+")")
                     self.sentAlertLow=True
                 except:
-                    print "puschetta notification failed"
+                    self.inflog("puschetta notification failed")
                     
             if (self.ot>self.alertTempHigh) and not(self.sentAlertHigh):
                 try:
                     self.p.pushMessage(CHANNEL_NAME,"Temperature alert (" +str(self.ot)+")")
                     self.sentAlertHigh=True
                 except:
-                    print "puschetta notification failed"
+                    self.inflog("puschetta notification failed")
                                         
     # reset flags            
             if (self.ot>self.alertTempLow+1) and (self.sentAlertLow):
@@ -337,6 +346,28 @@ class climatehtmlfileTCP:
             self.sendAlerts()
 
             if self.hasSensorData:
+                # first write to NOW file
+                datafilen=open(self.datalogfile+'NOW.txt','w')
+                datafilen.write('Canterburry: ')
+                datafilen.write(str.format(": {0:.1f} C",self.ot)+", ")
+                datafilen.write(str.format("{0:.0f} %",self.oh)+", ")
+                datafilen.write(str.format("{0:.0f} Pa",self.op)+" (")
+                datafilen.write(strftime('%d-%m %H:%M',self.bomdatatimefull)+")\n")
+
+                for sid in self.sensidtable:
+                    it=self.sensidtable[sid]['T']
+                    ih=self.sensidtable[sid]['H']
+                    ip=self.sensidtable[sid]['P']
+                    ib=self.sensidtable[sid]['B']
+                    its=self.sensidtable[sid]['Time']
+                    datafilen.write(str(sid))
+                    datafilen.write(str.format(": {0:.1f} C",it)+", ")
+                    datafilen.write(str.format("{0:.0f} %",ih)+", ")
+                    datafilen.write(str.format("{0:.0f} Pa",ip)+" (")
+                    datafilen.write(strftime('%d-%m %H:%M',its)+")\n")
+                datafilen.close()
+                self.ftpcopy(self.datalogfile+'NOW.txt')
+                
                 self.filen=open(self.filename,'w')
                 self.datafilen=open(self.datalogfile,'a')
                 self.filen.write('<html><head><link rel="stylesheet" type="text/css" href="climatetable.css"><meta http-equiv="refresh" content="30"></head><body>\n')
@@ -383,9 +414,10 @@ climatefile=climatehtmlfileTCP(wpath,BOMpath,fradix,TCPport,errfilename,AlertLow
 
 try:
     # update pltos first - useful for debug
-    climatefile.plotdataday()
+   # climatefile.plotdataday()
+    pass
 except:
-    print 'error while plotting'
+    climatefile.inflog('error while plotting')
 
 try:
     while 1:

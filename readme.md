@@ -90,7 +90,7 @@ your distribution/package manager. I'm not sure which version is
 required, but it runs with numpy 1.11.0, matplotlib 1.1.1rc2, pushetta
 1.0.15.
 Notifications require a free account with the pushetta service. For this, and how to install the pushetta python package, see [the puhsetta help page](http://pushetta.com/pushetta-docs).
-Feel free to contact me if you have any trouble installing or running the server.
+Feel free to contact me (open an issue) if you have any trouble installing or running the server.
 
 
 ## Updates:
