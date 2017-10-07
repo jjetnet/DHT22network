@@ -105,9 +105,11 @@ class TCPlistener:
         #came out of loop
         conn.close()
 	return 0
+    
     def inflog(self,txt):
         txt=strftime('%d-%m-%Y %H:%M:%S')+': '+txt+'\n'
-        self.errfilen.write(txt);
+        self.errfilen.write(txt)
+        self.errfilen.flush()
           
 
 class climatehtmlfileTCP:
@@ -138,7 +140,8 @@ class climatehtmlfileTCP:
 
     def inflog(self,txt):
         txt=strftime('%d-%m-%Y %H:%M:%S')+': '+txt+'\n'
-        self.errfilen.write(txt);
+        self.errfilen.write(txt)
+        self.errfilen.flush()
             
     def waterPartialPressure(self,temperature,humidity):
         "Calculates watersaturatiopressure(temperature,humidity) temperautre (C), h (%)"
@@ -190,7 +193,8 @@ class climatehtmlfileTCP:
             
     def addSensorData(self,t,h,sensid,timest,b):
         ip=self.waterPartialPressure(t,h)
-        self.sensidtable[sensid]={'T': t,'H': h, 'P': ip, 'Time': timest,'B': b}            
+        self.sensidtable[sensid]={'T': t,'H': h, 'P': ip, 'Time': timest,'B': b}
+        self.adddatatologfile(sensid)
         
     def addlinetotable(self,text):
         self.filen.write("<tr>"+text+"</tr>")
@@ -207,14 +211,16 @@ class climatehtmlfileTCP:
         ip=self.sensidtable[sensid]['P']
         ib=self.sensidtable[sensid]['B']
         timest=self.sensidtable[sensid]['Time']
-        datafilen=open(self.datalogfile+str(sensid)+'.csv','a')
+        datafilen=open(self.datalogfile+str(sensid)+'.csv','a') 
         datafilen.write(str.format('{0:.3f}',mktime(timest))+',')
         datafilen.write(strftime('%d-%m-%Y %H:%M:%S',timest)+",")
         datafilen.write(str.format("{0:.1f}",it)+",")
         datafilen.write(str.format("{0:.0f}",ih)+",")
         datafilen.write(str.format("{0:.0f}",ip)+",")
         datafilen.write(str.format("{0:.0f}",ib)+"\n")
+        datafilen.flush() # force writing buffer
         datafilen.close()
+        #self.inflog('added data to file - sensor '+str(sensid))
 
         
     def writeBOMcsv(self):
@@ -257,16 +263,17 @@ class climatehtmlfileTCP:
         ax3.set_color_cycle(cols)
         icol=0
         data=np.genfromtxt(self.datalogfile+'BOM.csv',skip_header=0,delimiter=',')
-        data=data[~np.isnan(data[:,0])] # remove lines with nan for date
-        if data[:,0].size>1: # only plot if more than one data point
-            lcol=cols[icol]
-            ndates=data[:,0]
-            ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600*days])
-            ldata=data[ndates[:]>=ndates[-1]-24*3600*days]
-            if(ldata[:,0].size>1):
-                ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label='outside')
-                ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label='outside')
-                ax3.plot_date(ldates,ldata[:,4],ls='solid',marker="",color=lcol,label='outside')
+        if(data.ndim>1):
+            data=data[~np.isnan(data[:,0])] # remove lines with nan for date
+            if data[:,0].size>1: # only plot if more than one data point
+                lcol=cols[icol]
+                ndates=data[:,0]
+                ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600*days])
+                ldata=data[ndates[:]>=ndates[-1]-24*3600*days]
+                if(ldata[:,0].size>1):
+                    ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label='outside')
+                    ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label='outside')
+                    ax3.plot_date(ldates,ldata[:,4],ls='solid',marker="",color=lcol,label='outside')
 
         ax1.set_title('Temperature')
         ax1.set_ylabel('Temp')
@@ -278,20 +285,21 @@ class climatehtmlfileTCP:
         # now add all sensor data
         for sid in self.sensidtable:
             data=np.genfromtxt(self.datalogfile+str(sid)+'.csv',skip_header=0,delimiter=',')
-            data=data[~np.isnan(data[:,0])] # remove lines with nan for date
-            if(data[:,0].size>1):
-                icol=icol+1
-                if icol>=len(cols): icol=1
-                lcol=cols[icol]                
-                ndates=data[:,0]
-                ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600*days])
-#                ndates=ndates[~np.isnan(data).any(axis=1)] # removs raws with nans
-                if len(set(ldates))>1: #only plot if more than one unique timestamp in srlected timeframe
-                    ldata=data[ndates[:]>=ndates[-1]-24*3600*days]
-                    if(ldata[:,0].size>1):
-                        ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label=str(sid))
-                        ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label=str(sid))
-                        ax3.plot_date(ldates,ldata[:,4],ls='solid',marker="",color=lcol,label=str(sid))
+            if data.ndim>1:
+                data=data[~np.isnan(data[:,0])] # remove lines with nan for date
+                if(data[:,0].size>1):
+                    icol=icol+1
+                    if icol>=len(cols): icol=1
+                    lcol=cols[icol]                
+                    ndates=data[:,0]
+                    ldates=dateconv(ndates[ndates[:]>=ndates[-1]-24*3600*days])
+                    #                ndates=ndates[~np.isnan(data).any(axis=1)] # removs raws with nans
+                    if len(set(ldates))>1: #only plot if more than one unique timestamp in srlected timeframe
+                        ldata=data[ndates[:]>=ndates[-1]-24*3600*days]
+                        if(ldata[:,0].size>1):
+                            ax1.plot_date(ldates,ldata[:,2],ls='solid',marker="",color=lcol,label=str(sid))
+                            ax2.plot_date(ldates,ldata[:,3],ls='solid',marker="",color=lcol,label=str(sid))
+                            ax3.plot_date(ldates,ldata[:,4],ls='solid',marker="",color=lcol,label=str(sid))
 
         f.autofmt_xdate()        
         if days>1:
@@ -390,7 +398,7 @@ class climatehtmlfileTCP:
                     else:
                         self.addlinetotable("<td>"+str(sid)+":</td><td>"+str.format("{0:.1f}",it)+"&deg;C</td><td>"+str.format("{0:.1f}",ih)+" %</td><td>"+
                                         str.format("{0:.1f}",ip)+" Pa</td><td>"+strftime('%d-%m-%Y %H:%M:%S',its)+'</td><td CLASS="good">'+str(ib)+"</td>")
-                    self.adddatatologfile(sid) #having this here writes one line on csv file each time 
+                    #self.adddatatologfile(sid) #having this here writes one line on csv file each time 
                                                # any sensor sends data, ending up with as many repeat lines as there are sensors
 
                 self.closetable()
@@ -437,10 +445,14 @@ except KeyboardInterrupt:
     climatefile.errfilen.close()
     climatefile.TCPlistener.exitloop=True
     
+except:
+    print ("Unexpected error:", sys.exc_info()[0])
+    raise
     
 finally:
     climatefile.TCPlistener.s.close()
     climatefile.errfilen.close()
     climatefile.TCPlistener.exitloop=True
-    climatefile.p.pushMessage(CHANNEL_NAME,"Service terminated")
+    if climatefile.p:
+        climatefile.p.pushMessage(CHANNEL_NAME,"Service terminated")
     
