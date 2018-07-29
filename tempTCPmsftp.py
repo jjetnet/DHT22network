@@ -4,12 +4,7 @@
 
 import matplotlib
 matplotlib.use('Agg')
-try:
-    # For Python 3.0 and later
-    from urllib.request import urlopen
-except ImportError:
-    # Fall back to Python 2's urllib2
-    from urllib2 import urlopen
+import requests
     
 from ftplib import FTP 
 import json,math
@@ -131,7 +126,6 @@ class climatehtmlfileTCP:
         self.sentAlertHigh=False
         self.sentAlertLow=False
         self.inflog('climateHTMLfile class initiated')
-        #print 'initiated'
         if(API_KEY):
             self.p=Pushetta(API_KEY)
             self.p.pushMessage(CHANNEL_NAME,"Service started")            
@@ -163,8 +157,8 @@ class climatehtmlfileTCP:
     def getBomData(self):
         "get BOM observations"
         try:
-            response = urlopen(self.bomurl)
-            self.bomdata=json.load(response)
+            response=requests.get(self.bomurl)
+            self.bomdata=json.loads(response.content)
             self.ot=float(self.bomdata["observations"]["data"][0]["air_temp"])
             self.oh=float(self.bomdata["observations"]["data"][0]["rel_hum"])
             self.bomdatatime=self.bomdata["observations"]["data"][0]["local_date_time"]
@@ -225,12 +219,19 @@ class climatehtmlfileTCP:
         
     def writeBOMcsv(self):
         if(self.hasbomdata):
-            datafilen=open(self.datalogfile+'BOM.csv','a')
-            datafilen.write(str.format('{0:.3f}',mktime(self.bomdatatimefull))+',')
-            datafilen.write(strftime('%d-%m-%Y %H:%M:%S',self.bomdatatimefull)+",")
-            datafilen.write(str.format("{0:.1f}",self.ot)+",")
-            datafilen.write(str.format("{0:.0f}",self.oh)+",")
-            datafilen.write(str.format("{0:.0f}",self.op)+"\n")
+            datafilen=open(self.datalogfile+'BOM.csv','a+')
+            #check if last line exist and if timestamp is identical to current time stamp
+            try:
+                lastBomTime=datafilen.readlines()[-1].split(',')[0] 
+            except:
+                lastBomTime=''
+                
+            if(str.format('{0:.3f}',mktime(self.bomdatatimefull))!=lastBomTime):
+                datafilen.write(str.format('{0:.3f}',mktime(self.bomdatatimefull))+',')
+                datafilen.write(strftime('%d-%m-%Y %H:%M:%S',self.bomdatatimefull)+",")
+                datafilen.write(str.format("{0:.1f}",self.ot)+",")
+                datafilen.write(str.format("{0:.0f}",self.oh)+",")
+                datafilen.write(str.format("{0:.0f}",self.op)+"\n")
             datafilen.close()
 
     def ftpcopy(self, name):
@@ -258,9 +259,9 @@ class climatehtmlfileTCP:
         f, (ax1, ax2,ax3)= plt.subplots(3,sharex=True,sharey=False)
         f.set_size_inches(5,10)
         # plot BOM data first
-        ax1.set_color_cycle(cols)
-        ax2.set_color_cycle(cols)
-        ax3.set_color_cycle(cols)
+        ax1.set_prop_cycle('color',cols)
+        ax2.set_prop_cycle('color',cols)
+        ax3.set_prop_cycle('color',cols)
         icol=0
         data=np.genfromtxt(self.datalogfile+'BOM.csv',skip_header=0,delimiter=',')
         if(data.ndim>1):
