@@ -17,6 +17,8 @@ import socket
 import threading
 import sys
 import matplotlib.cbook as cbook
+import paho.mqtt.client as mqtt
+
 from pushetta import Pushetta
 # import network configuration etc
 from tempTCPconfig import *
@@ -131,7 +133,10 @@ class climatehtmlfileTCP:
             self.p.pushMessage(CHANNEL_NAME,"Service started")            
         else:
             self.p=False
-
+        if(MQTTserver):
+            self.mqttClient=mqtt.Client('DHT22network')
+            self.mqttClient.username_pw_set(username=MQTTusername,password=MQTTpassword)
+            
     def inflog(self,txt):
         txt=strftime('%d-%m-%Y %H:%M:%S')+': '+txt+'\n'
         self.errfilen.write(txt)
@@ -189,7 +194,12 @@ class climatehtmlfileTCP:
         ip=self.waterPartialPressure(t,h)
         self.sensidtable[sensid]={'T': t,'H': h, 'P': ip, 'Time': timest,'B': b}
         self.adddatatologfile(sensid)
-        
+        if(MQTTserver):
+            self.mqttClient.connect(MQTTserver)
+            re=self.mqttClient.publish('DHTNetwork/'+sensid,'{"temperature": '+str(t)+', "humidity": '+str(h)+ ', "water_pressure": ' + str(ip) +'}')
+            self.mqttClient.disconnect()
+            self.inflog('MQTT publish: '+str(re))
+            
     def addlinetotable(self,text):
         self.filen.write("<tr>"+text+"</tr>")
 
