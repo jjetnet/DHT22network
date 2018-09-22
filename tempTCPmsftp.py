@@ -242,11 +242,12 @@ class climatehtmlfileTCP:
                 datafilen.write(str.format("{0:.1f}",self.ot)+",")
                 datafilen.write(str.format("{0:.0f}",self.oh)+",")
                 datafilen.write(str.format("{0:.0f}",self.op)+"\n")
-                if(MQTTserver):
-                    self.mqttClient.connect(MQTTserver)
-                    re=self.mqttClient.publish('DHTNetwork/BOM','{"temperature": '+str(self.ot)+', "humidity": '+str(self.oh)+ ', "water_pressure": ' + str(self.op) +'}')
-                    self.mqttClient.disconnect()
-#                    self.inflog('MQTT publish: '+str(re))
+
+            if(MQTTserver):
+                self.mqttClient.connect(MQTTserver)
+                re=self.mqttClient.publish('DHTNetwork/BOM','{"temperature": '+str(self.ot)+', "humidity": '+str(self.oh)+ ', "water_pressure": ' + str(self.op) +'}')
+                self.mqttClient.disconnect()
+                #                    self.inflog('MQTT publish: '+str(re))
 
             datafilen.close()
 
