@@ -18,6 +18,8 @@ import threading
 import sys
 import matplotlib.cbook as cbook
 import paho.mqtt.client as mqtt
+from socket import error as SocketError
+import errno
 
 from pushetta import Pushetta
 # import network configuration etc
@@ -71,7 +73,12 @@ class TCPlistener:
         while True:
             #Receiving from client
             
-            data = conn.recv(1024)
+            try:
+                data = conn.recv(1024)
+            except SocketError as e:
+                if e.errno !=errno.ECONNRESET: # handle errors that are not connection reset by peer
+                    raise
+                data=''  # ignore that error as it happens every time host is scanned on port 
             self.inflog('"'+data.strip()+'"')
             if(data!=''):
                 try:
