@@ -8,14 +8,11 @@ calculations which distinguishes it from others, but if you don't need
 this look around for better implementations.
 
 ##  MQTT branch
-sensor data is now published to MQTT server - usefull to integrate data eg to home assistant. Configure the mqtt serer  in tempTCPconfig.py
+sensor data is now published to MQTT server - usefull to integrate data eg to home assistant.
  #MQTT server IP address and port
  MQTTserver='127.0.0.1'
  MQTTusername='yourusername'
  MQTTpassword='yourpassword'
-
-each sensor's data is published to the MQTT server as DHTNetwok/'sensor id' with payload json data containing temperature, humidity and water pressure:
- 'DHTNetwork/'+sensid,'{"temperature": '+str(t)+', "humidity": '+str(h)+ ', "water_pressure": ' + str(ip) +'}
 
 ## Overview:
 
